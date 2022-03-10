@@ -48,7 +48,7 @@ class BFragment : Fragment()
                 month.set(1, "29")
             }
             val today =
-                "$api?KEY=$KEY&Type=$Type&pIndex=1&pSize=100&ATPT_OFCDC_SC_CODE=K10&SD_SCHUL_CODE=$SD_CODE&MMEAL_SC_CODE=2&&MLSV_FROM_YMD=${yyyy+MM+dd}&MLSV_TO_YMD=${yyyy+MM+month[MM.toInt()]}"
+                "$api?KEY=$KEY&Type=$Type&pIndex=1&pSize=100&ATPT_OFCDC_SC_CODE=K10&SD_SCHUL_CODE=$SD_CODE&MMEAL_SC_CODE=2&MLSV_FROM_YMD=${yyyy+MM+dd}&MLSV_TO_YMD=${yyyy+MM+month[MM.toInt()]}"
 
             val parse =
                 Jsoup.connect(today)
@@ -65,7 +65,7 @@ class BFragment : Fragment()
             val array = arrayOf(" (오늘)", " (내일)", " (모레)", " (글피)")
             for(i in 0 until jsonArr.length()){
                 val preDate = jsonArr.getJSONObject(i).getString("MLSV_YMD").substring(4,8)
-                val date = preDate + if((preDate.toInt() - (MM+dd).toInt()) < 4) array[(preDate.toInt() - (MM+dd).toInt())] else ""
+                val date = preDate + if((preDate.toInt() - (MM+dd).toInt()) < 4 ) array[(preDate.toInt() - (MM+dd).toInt())] else ""
                 val dish = jsonArr.getJSONObject(i).getString("DDISH_NM").replace(Regex("\\d+\\."), "").replace(" ", "\n")
                 list.add(Meal(date, dish))
             }
