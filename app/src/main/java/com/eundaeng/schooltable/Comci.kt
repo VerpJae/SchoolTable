@@ -4,6 +4,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
+import org.intellij.lang.annotations.RegExp
+import org.json.JSONArray
 import org.json.JSONObject
 import org.jsoup.Jsoup
 import java.net.URI
@@ -23,22 +25,25 @@ class Comci {
      * @license MIT
      */
     val HOST = "http://컴시간학생.kr"
-    private var _baseUrl: Any? = null
+    private var _baseUrl: String? = null
     private lateinit var _url: String
     private var _initialized: Boolean = false
-    private var _pageSource: Any? = null
+    private var _pageSource: String? = null
     private var _cache = null
     private var _cacheAt = null
-    private lateinit var _scData: List<String>
     private var _schoolCode = -1
     private var _weekdayString = arrayOf('일', '월', '화', '수', '목', '금', '토')
     private var _option = arrayOf(3,0) //maxGrade, cache)
 
     private val uri = Jsoup.connect(HOST).get().select("html > frameset > frame[src]").attr("src")
+
+    lateinit var _scData: List<String>
+    lateinit var _extractCode: String
     fun init(op: Array<Int>): String {
         _option = op
         _url = uri
-        _baseUrl = URI(uri)
+        val url = URL(uri)
+        _baseUrl = url.protocol + "://" + url.host + ":" + if(url.port == -1) 80 else url.port
         val source = Jsoup.connect(_url).get().html()
         val idx = source.indexOf("school_ra(sc)");
         val idx2 = source.indexOf("sc_data('");
@@ -48,31 +53,28 @@ class Comci {
         }
 
         val extractSchoolRa = source.substring(idx, 50).replace(" ", "")
-        val schoolRa = Regex("url:'.(.*?)'").findAll(extractSchoolRa).map { it.groupValues[1] }
+        val schoolRa = Regex("url:'.(.*?)'").findAll(extractSchoolRa)
 
         // sc_data 인자값 추출
         val extractScData = source.substring(idx2, 30).replace(" ", "")
-        val scData = Regex("\\(.*?\\)").findAll(extractScData).map { it.groupValues[1] }
+        val scData = Regex("\\(.*?\\)").findAll(extractScData)
 
         if (scData.count() != 0) {
-            _scData = scData.first().replace(Regex("[()]"), "").replace(Regex("'"), "").split(',');
+            _scData = scData.toList()[0].value.replace(Regex("[()]"), "").replace(Regex("'"), "").split(',');
         } else {
             return "sc_data 값을 찾을 수 없습니다."
         }
 
+
         if (schoolRa.count() != 0) {
-            _extractCode = schoolRa[1];
+            _extractCode = schoolRa.toList()[1].value
         } else {
             return "school_ra 값을 찾을 수 없습니다.";
 
         }
-
-                this._pageSource = source;
-                resolve();
-            },
-                );
-            });
-            this._initialized = true;
+            _pageSource = source
+            _initialized = true
+            return "true"
         }
 
         /**
@@ -81,41 +83,39 @@ class Comci {
          * @param {string} keyword 학교 검색 키워드
          * @returns 검색된 학교 목록 `Array<[코드, 지역, 학교이름, 학교코드]>`
          */
-        search(keyword) {
+        @Throws(Error::class)
+        fun search(keyword: String): JSONArray {
             if (!this._initialized) {
-                throw new Error('초기화가 진행되지 않았습니다.');
+                throw Error("초기화가 진행되지 않았습니다.");
             }
 
-            let hexString = '';
-            for (let buf of iconv.encode(keyword, 'euc-kr')) {
-                hexString += '%' + buf.toString(16);
+            var hexString = "";
+            for (i in keyword) {
+                hexString += '%' + i.toString(16);
             }
 
-            return new Promise((resolve, reject) => {
-                request(this._baseUrl + this._extractCode + hexString, (err, _res, body) => {
-                let jsonString = body.substr(0, body.lastIndexOf('}') + 1);
-                let searchData = JSON.parse(jsonString)['학교검색'];
+            val body = Jsoup.connect(this._baseUrl + this._extractCode + hexString).get().html()
+            val jsonString = body.substring(0, body.lastIndexOf('}') + 1)
+            val searchData = JSONObject(jsonString).getJSONObject("학교검색")
 
-                if (err) {
-                    reject(err);
-                }
+            if (searchData.length() <= 0) {
+                throw Error("검색된 학교가 없습니다.")
+            }
 
-                if (searchData.length <= 0) {
-                    reject(new Error('검색된 학교가 없습니다.'));
-                }
-
-                resolve(
-                    searchData.map((data) => {
-                        return {
-                            _: data[0],
-                            region: data[1],
-                            name: data[2],
-                            code: data[3],
-                        };
-                    }),
-                );
-            });
-            });
+            val arr = JSONArray()
+            for(i in 0..searchData.length()) {
+                arr.put(
+                    i, JSONObject(
+                        """
+                            "_": ${searchData.get("0")},
+                            "region": ${searchData.get("1")},
+                            "name": ${searchData.get("2")},
+                            "code": ${searchData.get("3")},
+                        """
+                    )
+                )
+            }
+            return arr
         }
 
         /**
@@ -123,7 +123,7 @@ class Comci {
          *
          * @param school
          */
-        setSchool(schoolCode) {
+        fun setSchool(schoolCode: Int) {
             this._schoolCode = schoolCode;
             this._cache = null;
         }
@@ -133,19 +133,19 @@ class Comci {
          *
          * @return 시간표 데이터
          */
-        async getTimetable() {
+        suspend fun getTimetable() {
             this._isReady();
 
             // 캐시 지속시간이 존재하고, 아직 만료되지 않았다면 기존 값 전달
             // 만료되었거나, 캐시가 비활성화(기본값)되어있는 경우엔 항상 새로운 값 파싱하여 전달
-            if (this._option.cache && !this._isCacheExpired()) {
-                return this._cache;
+            if (this._option[1] != 0 && !this._isCacheExpired()) {
+                return this._cache
             }
 
-            val jsonString = await this._getData();
-            val resultJson = JSON.parse(jsonString);
-            val startTag = this._pageSource.match(/<script language(.*?)>/gm)[0];
-            val regex = new RegExp(startTag + '(.*?)</script>', 'gi');
+            val jsonString: String = this._getData();
+            val resultJson = JSONObject(jsonString);
+            val startTag = Regex("""<script language(.*?)>""").findAll(this._pageSource!!).toList()[0].value
+            val regex = Regex("$startTag(.*?)</script>", RegexOption.valueOf("gi"))
 
             let match;
             let script = '';
@@ -195,7 +195,7 @@ class Comci {
          * 교시별 수업시간 정보를 조회합니다.
          * @returns
          */
-        async getClassTime() {
+        suspend fun getClassTime() {
             this._isReady();
             // 교시별 시작/종료 시간 데이터
             return JSON.parse(await this._getData())['일과시간'];
@@ -287,7 +287,7 @@ class Comci {
         /**
          * 초기화 및 학교 설정이 모두 준비되었는지 확인합니다.
          */
-        _isReady() {
+        fun _isReady() {
             if (!this._initialized) {
                 throw new Error('초기화가 진행되지 않았습니다.');
             }
