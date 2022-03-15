@@ -38,7 +38,7 @@ class AFragment : Fragment()
             val doc = Jsoup.connect(url).ignoreContentType(true).get().text()
             val json = JSONObject(doc)
 
-            //val timetable = Comci.getTimeTable(43321, 2, 2)
+            //val timetable = Co mci.kt.getTimeTable(43321, 2, 2)
             val timetable = arrayOfNulls<Pair<String, String>>(40)
             val day = arrayOf("","monday", "tuesday", "wednesday", "thursday", "friday")
             for (i in 1..5) {

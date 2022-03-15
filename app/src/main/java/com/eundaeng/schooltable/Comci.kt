@@ -91,7 +91,7 @@ class Comci {
 
             var hexString = "";
             for (i in keyword) {
-                hexString += '%' + i.toString(16);
+                hexString += "%$i";
             }
 
             val body = Jsoup.connect(this._baseUrl + this._extractCode + hexString).get().html()
@@ -147,8 +147,8 @@ class Comci {
             val startTag = Regex("""<script language(.*?)>""").findAll(this._pageSource!!).toList()[0].value
             val regex = Regex("$startTag(.*?)</script>", RegexOption.valueOf("gi"))
 
-            let match;
-            let script = '';
+            var match: String
+            var script = "";
             // 컴시간 웹 페이지 JS 코드 추출
             while ((match = regex.exec(this._pageSource))) {
                 script += match[1];

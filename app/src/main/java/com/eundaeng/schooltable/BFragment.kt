@@ -62,10 +62,13 @@ class BFragment : Fragment()
             val jsonArr =
                 JSONObject(parse).getJSONArray("mealServiceDietInfo").getJSONObject(1)
                     .getJSONArray("row")
-            val array = arrayOf(" (오늘)", " (내일)", " (모레)", " (글피)")
             for(i in 0 until jsonArr.length()){
                 val preDate = jsonArr.getJSONObject(i).getString("MLSV_YMD").substring(4,8)
-                val date = preDate + if((preDate.toInt() - (MM+dd).toInt()) < 4 ) array[(preDate.toInt() - (MM+dd).toInt())] else ""
+                val m = preDate.substring(0,2)
+                val d = preDate.substring(2,4)
+                println("hello ${yyyy.toInt()+1}-$m-$d")
+                val day = if(MM == "12" && m == "01") SimpleDateFormat("(E)", Locale.KOREA).format(SimpleDateFormat("yyyyMMdd", Locale.KOREA).parse("${yyyy.toInt()+1}-$m-$d")!!) else SimpleDateFormat("(E)", Locale.KOREA).format(SimpleDateFormat("yyyyMMdd", Locale.KOREA).parse("$yyyy-$m-$d")!!)
+                val date = preDate + day
                 val dish = jsonArr.getJSONObject(i).getString("DDISH_NM").replace(Regex("\\d+\\."), "").replace(" ", "\n")
                 list.add(Meal(date, dish))
             }
