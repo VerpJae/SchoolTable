@@ -11,7 +11,7 @@ import org.jsoup.Jsoup
 import java.net.URI
 import java.net.URL
 
-class Comci {
+class `Comci.txt` {
     /**
      * comcigan-parser Module
      *
@@ -144,38 +144,37 @@ class Comci {
 
             val jsonString: String = this._getData();
             val resultJson = JSONObject(jsonString);
-            val startTag = Regex("""<script language(.*?)>""").findAll(this._pageSource!!).toList()[0].value
+            val startTag = Regex("""<script language(.*?)>""", RegexOption.valueOf("gm")).findAll(this._pageSource!!).toList()[0].value
             val regex = Regex("$startTag(.*?)</script>", RegexOption.valueOf("gi"))
 
-            var match: String
             var script = "";
+            val match = regex.findAll(this._pageSource!!)
             // 컴시간 웹 페이지 JS 코드 추출
-            while ((match = regex.exec(this._pageSource))) {
-                script += match[1];
+            while (match.count() != 0) {
+                script += match.toList()[0].value
             }
 
             // 데이터 처리 함수명 추출
-            val functioName = script
-                    .match(/function 자료[^\(]*/gm)[0]
-            .replace(/\+s/, '')
-            .replace('function', '');
+            val functioName = Regex("function 자료[^(]*", RegexOption.valueOf("gm")).findAll(script).toList()[0].value
+            .replace(Regex("\\+s"), "")
+            .replace("function", "");
 
             // 학년 별 전체 학급 수
-            val classCount = resultJson['학급수'];
+            val classCount = resultJson.getJSONObject("학급수");
 
-            // 시간표 데이터 객체
-            val timetableData = {};
+            // 시간표 데이터 객체 Array(Pair((classnum, Array<Array<String>>(Array(mon))~)
+            val timetableData = arrayOf(arrayOf(arrayOf("ㅎㅇ")))
 
             // 1학년 ~ maxGrade 학년 교실 반복
-            for (let grade = 1; grade <= this._option['maxGrade']; grade++) {
-                if (!timetableData[grade]) {
-                    timetableData[grade] = {};
+            for (grade in 1..this._option[0]) {
+                if (timetableData[grade].isEmpty()) {
+                    timetableData[grade] = arrayOf()
                 }
 
                 // 학년 별 반 수 만큼 반복
-                for (let classNum = 1; classNum <= classCount[grade]; classNum++) {
+                for (classNum in 1..classCount.getInt("$grade")) {
                 if (!timetableData[grade][classNum]) {
-                    timetableData[grade][classNum] = {};
+                    timetableData[grade][classNum] = arrayOf()
                 }
 
                 timetableData[grade][classNum] = this._getClassTimetable(
@@ -204,7 +203,7 @@ class Comci {
         /**
          * 컴시간의 API를 통해 전체 시간표 데이터를 수집/파싱하여 반환합니다.
          */
-        async _getData() {
+        suspend fun _getData() {
             val da1 = '0';
             val s7 = this._scData[0] + this._schoolCode;
             val sc3 =
@@ -292,7 +291,7 @@ class Comci {
                 throw new Error('초기화가 진행되지 않았습니다.');
             }
 
-            if (this._schoolCode === -1) {
+            if (this._schoolCode == -1) {
                 throw new Error('학교 설정이 진행되지 않았습니다.');
             }
         }
@@ -302,7 +301,7 @@ class Comci {
          *
          * @returns 캐시 만료 여부
          */
-        _isCacheExpired() {
+        fun _isCacheExpired() {
             return +new Date() - this._cacheAt >= this._option.cache;
         }
     }
