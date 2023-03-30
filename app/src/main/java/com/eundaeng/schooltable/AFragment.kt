@@ -1,6 +1,8 @@
 package com.eundaeng.schooltable
 
+import android.content.Context
 import android.content.Context.MODE_PRIVATE
+import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -12,8 +14,10 @@ import android.widget.Button
 import android.widget.Spinner
 import androidx.core.graphics.drawable.toDrawable
 import androidx.fragment.app.Fragment
+import io.teamif.patrick.comcigan.ComciganAPI
 import kotlinx.coroutines.*
 import java.io.FileInputStream
+import java.io.FileNotFoundException
 import java.io.FileOutputStream
 import java.io.IOException
 import java.util.regex.Matcher
@@ -22,51 +26,49 @@ import java.util.regex.Pattern
 
 class AFragment : Fragment()
 {
+    fun createFile(filename:String, mimeType:String) {
+        val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = mimeType
+            putExtra(Intent.EXTRA_TITLE, filename)
+        }
+        startActivityForResult(intent, 1)
+    }
+    fun saveCache(data: String) {
+        requireContext().openFileOutput("data.lol", Context.MODE_PRIVATE).use { stream ->
+            stream.write(data.toByteArray())
+        }
+        println(data)
+    }
+    fun readCache(): String {
+        var contents = ""
+        try {
+            requireContext().openFileInput("data.lol").bufferedReader().useLines { lines ->
+                contents = lines.joinToString("\n")
+            }
+        }catch(e: FileNotFoundException){
+            contents = ""
+        }
+        return contents
+    }
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View?
     {
         val view = inflater.inflate(R.layout.comci, container, false)
-
-        //내부 저장소와 연결되어 있는 쓰기 스트림 추출
-        //MODE_PRIVATE 파일 덮어쓰기 , MODE_APPEND 파일 새로 쓰기
-        //내부 저장소와 연결되어 있는 쓰기 스트림 추출
-        //MODE_PRIVATE 파일 덮어쓰기 , MODE_APPEND 파일 새로 쓰기
-        var fos: FileOutputStream = requireActivity().openFileOutput("myFile.dat", MODE_PRIVATE)
-        var fis: FileInputStream? = null
-        var readstr = ""
-        try {
-            fis = requireActivity().openFileInput("myFile.dat")
-            val txt = ByteArray(fis!!.available())   // 읽어들일 파일의 크기만큼 메모리 할당
-            fis.read(txt)
-            readstr = txt.toString(Charsets.UTF_8)
-            if(readstr == "") {
-                fos.write("GRADEa 1 aCLASSb 2 b".toByteArray())
-                fos.close()
-                fos = requireActivity().openFileOutput("myFile.dat", MODE_PRIVATE)
-            }
-        }catch (e : IOException){
-            fos.write("GRADEa 1 aCLASSb 2 b".toByteArray())
-            fos.close()
-            fos = requireActivity().openFileOutput("myFile.dat", MODE_PRIVATE)
-            fis = requireActivity().openFileInput("myFile.dat")
-            readstr = "GRADEa 1 aCLASSb 2 b"
-        }finally {
-            fis = requireActivity().openFileInput("myFile.dat")
-            val txt = ByteArray(fis!!.available())   // 읽어들일 파일의 크기만큼 메모리 할당
-            fis.read(txt)
-            readstr = txt.toString(Charsets.UTF_8)
-            println("readstr: $readstr")
-        }
+        var readstr =
+        if(readCache() == "") {
+            saveCache("1-4")
+            "1-4"
+        } else readCache()
         val sch = view.findViewById<Spinner>(R.id.sch)
-        val schlist = arrayOf("영월중학교")
+        val schlist = arrayOf("영월고등학교")
         sch.adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_dropdown_item, schlist)
 
         val gr = view.findViewById<Spinner>(R.id.gr)
         val grlist = arrayOf("1","2","3")
         gr.adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_dropdown_item, grlist)
-        val grade: String = " ${gr.selectedItem} "
 
         val cl = view.findViewById<Spinner>(R.id.cl)
         val cllist = arrayListOf<ArrayList<String>>()
@@ -87,99 +89,132 @@ class AFragment : Fragment()
         val fri = arrayOf(R.id.b5, R.id.b10, R.id.b15, R.id.b20, R.id.b25, R.id.b30, R.id.b35, R.id.b40)
         val week = arrayOf(mon, tue, wed, thu, fri)
 
-        var rgrade: String = "3"
-        var rclass: String = "2"
 
-        val pattern: Pattern = Pattern.compile("GRADEa (\\d) aCLASSb (\\d) b")
-        var matcher: Matcher = pattern.matcher(readstr)
-        while (matcher.find()) {    // 정규식과 매칭되는 값이 있으면
-            rgrade = matcher.group(1)!!.trim()
-            rclass = matcher.group(2)!!.trim()
-            matcher = pattern.matcher(readstr)
-        }
-        CoroutineScope(Dispatchers.IO).launch {
-            val schid = Comcigan.searchSchool("영월중학교")
-            val timetable = Comcigan.getTimeTable(schid[0]!!.second, rgrade.toInt(), rclass.toInt())
-            val day = arrayOf("","monday", "tuesday", "wednesday", "thursday", "friday")
-            val timelist = (timetable.get("시간표") as ArrayList<ArrayList<String>>)
-            val otimelist = (timetable.get("본시간표") as ArrayList<ArrayList<String>>)
-            for (i in 1..5) {
-                for (j in 1..timelist[i-1].size) {
-                    /*view.findViewById<Button>(week[i-1][j-1]).text = json.getJSONObject("school").getJSONObject(day[i])
+
+        fun abc() {
+            val rgrade: String = readstr.split("-")[0]
+            val rclass: String = readstr.split("-")[1]
+            gr.setSelection(rgrade.trim().toInt() - 1)
+            cl.setSelection(rclass.toInt() - 1)
+            CoroutineScope(Dispatchers.IO).launch {
+                //val schid = Comcigan.searchSchool("영월고등학교")
+                //val timetable = Comcigan.getTimeTable(schid[0]!!.second, rgrade.toInt(), rclass.toInt())
+                val timetable = Comcigan.getTimeTable(rgrade.trim().toInt(), rclass.toInt())
+                val timetotal = Comcigan.getClassNumb() //4,4,4
+                println(timetotal.joinToString(","))
+                for (i in 0..2) {
+                    val cclist = arrayListOf<String>()
+                    for (j in 1..timetotal[i])
+                        cclist.add("$j")
+                    cllist.add(cclist)
+                }
+                for (we in 0..4) {
+                    for (ctime in 0..7) {
+                        val timetime = timetable.getJSONArray(we).getJSONObject(ctime)
+                        val sb = timetime.getString("subject")
+                        val th = timetime.getString("teacher")
+                        view.findViewById<Button>(week[we][ctime]).text = sb + "\n" + th
+                        if (timetime.getString("isChanged") == "true")
+                            view.findViewById<Button>(week[we][ctime]).background =
+                                Color.parseColor("#fcef00").toDrawable()
+                        else
+                            view.findViewById<Button>(week[we][ctime]).background =
+                                Color.parseColor("#fdffde").toDrawable()
+                    }
+                }
+                requireActivity().runOnUiThread(java.lang.Runnable {
+                    gr.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+                        override fun onItemSelected(
+                            parent: AdapterView<*>?,
+                            view: View?,
+                            position: Int,
+                            id: Long
+                        ) {
+                            println("position : $position, grade : ${grlist[position]}")
+                            cl.adapter = ArrayAdapter(
+                                requireContext(),
+                                android.R.layout.simple_spinner_dropdown_item,
+                                cllist[position]
+                            )
+                            cl.setSelection(0)
+                            if(readstr != "${gr.selectedItem}-${cl.selectedItem}") {
+                                readstr = "${gr.selectedItem}-${cl.selectedItem}"
+                                saveCache(readstr)
+                                abc()
+                            }
+                        }
+
+                        override fun onNothingSelected(parent: AdapterView<*>?) {
+                            //TODO("Not yet implemented")
+                        }
+                    }
+                    cl.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+                        override fun onItemSelected(
+                            parent: AdapterView<*>?,
+                            view: View?,
+                            position: Int,
+                            id: Long
+                        ) {
+                            if(readstr != "${gr.selectedItem}-${cl.selectedItem}") {
+                                readstr = "${gr.selectedItem}-${cl.selectedItem}"
+                                saveCache(readstr)
+                                abc()
+                            }
+                        }
+
+                        override fun onNothingSelected(parent: AdapterView<*>?) {
+                            //TODO("Not yet implemented")
+                        }
+                    }
+
+                    cl.adapter = ArrayAdapter(
+                        requireContext(),
+                        android.R.layout.simple_spinner_dropdown_item,
+                        cllist[gr.selectedItemPosition]
+                    )
+                    cl.setSelection(rclass.toInt()-1)
+                })
+                /*
+                val day = arrayOf("", "monday", "tuesday", "wednesday", "thursday", "friday")
+                val timelist = (timetable.get("시간표") as ArrayList<ArrayList<String>>)
+                val otimelist = (timetable.get("본시간표") as ArrayList<ArrayList<String>>)
+                for (i in 1..5) {
+                    for (j in 1..timelist[i - 1].size) {
+                        /*view.findViewById<Button>(week[i-1][j-1]).text = json.getJSONObject("school").getJSONObject(day[i])
                             .getJSONObject(j.toString()).getString("sb") + "\n" +
                     json.getJSONObject("school").getJSONObject(day[i])
                             .getJSONObject(j.toString()).getString("th")
                     */
-                    if(otimelist[i-1][j-1] != timelist[i-1][j-1])
-                        view.findViewById<Button>(week[i-1][j-1]).background = Color.parseColor("#fcef00").toDrawable()
-                    view.findViewById<Button>(week[i-1][j-1]).text = timelist[i-1][j-1]
-                    println((timetable.get("시간표") as ArrayList<ArrayList<String>>)[0][0])
-                }
-            }
-            //val timetable = Co mci.kt.getTimeTable(43321, 2, 2)
-            for(i in 1 until timetable.getJSONArray("학급수").length()) {
-                println((8 - timetable.getJSONArray("학급수").getInt(i)))
-                val realcl = (8 - timetable.getJSONArray("학급수").getInt(i))
-                val cclist = arrayListOf<String>()
-                for(j in 1..realcl){
-                    cclist.add(" $j ")
-                    println("realcl : $j")
-                }
-                cllist.add(cclist)
-            }
-            var str: String
-            requireActivity().runOnUiThread(java.lang.Runnable {
-                gr.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-                    override fun onItemSelected(
-                        parent: AdapterView<*>?,
-                        view: View?,
-                        position: Int,
-                        id: Long
-                    ) {
-                        println("position : $position, grade : ${grlist[position]}")
-                        cl.adapter = ArrayAdapter(
-                            requireContext(),
-                            android.R.layout.simple_spinner_dropdown_item,
-                            cllist[position]
-                        )
-                        str = "GRADEa${grade}aCLASSb${cl.selectedItem}b"
-                        fos.write(str.toByteArray())
-                    }
-
-                    override fun onNothingSelected(parent: AdapterView<*>?) {
-                        TODO("Not yet implemented")
+                        if (otimelist[i - 1][j - 1] != timelist[i - 1][j - 1])
+                            view.findViewById<Button>(week[i - 1][j - 1]).background =
+                                Color.parseColor("#fcef00").toDrawable()
+                        view.findViewById<Button>(week[i - 1][j - 1]).text = timelist[i - 1][j - 1]
+                        println((timetable.get("시간표") as ArrayList<ArrayList<String>>)[0][0])
                     }
                 }
-                cl.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-                    override fun onItemSelected(
-                        parent: AdapterView<*>?,
-                        view: View?,
-                        position: Int,
-                        id: Long
-                    ) {
-                        str = "GRADE[$grade]CLASS[${cl.selectedItem}]"
-                        fos.write(str.toByteArray())
+                //val timetable = Co mci.kt.getTimeTable(43321, 2, 2)
+                for (i in 1 until timetable.getJSONArray("학급수").length()) {
+                    println((8 - timetable.getJSONArray("학급수").getInt(i)))
+                    val realcl = (8 - timetable.getJSONArray("학급수").getInt(i))
+                    val cclist = arrayListOf<String>()
+                    for (j in 1..realcl) {
+                        cclist.add(" $j ")
+                        println("realcl : $j")
                     }
+                    cllist.add(cclist)
+                }*/
 
-                    override fun onNothingSelected(parent: AdapterView<*>?) {
-                        TODO("Not yet implemented")
-                    }
-                }
 
-                cl.adapter = ArrayAdapter(
-                    requireContext(),
-                    android.R.layout.simple_spinner_dropdown_item,
-                    cllist[3 - grade.substring(1,2).toInt()]
-                )
-            })
-
-            /*
+                /*
             for (i in 0..39) {
                 val a = view.findViewById<Button>(idArray[i])
                 a.text = timetable[i]?.first + "\n" + timetable[i]?.second
                 println(timetable[i]?.first + "index = $i, default id = $defaultId current id = ${idArray[i]}")
             }*/
+            }
         }
+        abc()
+
         return view
     }
 }

@@ -11,7 +11,7 @@ import org.jsoup.Jsoup
 import java.net.URI
 import java.net.URL
 
-class `Comci.txt` {
+class Comci {
     /**
      * comcigan-parser Module
      *

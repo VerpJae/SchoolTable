@@ -8,6 +8,7 @@ import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentTransaction
 import com.google.android.material.tabs.TabLayout
 import kotlinx.android.synthetic.main.activity_main.*
+import java.io.FileNotFoundException
 import java.util.*
 
 class MainActivity : AppCompatActivity() {
@@ -20,12 +21,15 @@ class MainActivity : AppCompatActivity() {
         fun ApplicationContext() : Context {
             return instance.applicationContext
         }
+        lateinit var prefs: PreferenceUtil
     }
     private var fragmentManager: FragmentManager = supportFragmentManager
+    //private var fragmentA: WVFragment = WVFragment()
     private var fragmentA: AFragment = AFragment()
     private var fragmentB: BFragment = BFragment()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        prefs = PreferenceUtil(applicationContext)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         val adapter = PagerAdapter(fragmentManager)

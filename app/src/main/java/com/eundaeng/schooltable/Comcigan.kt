@@ -1,17 +1,48 @@
 package com.eundaeng.schooltable
 
+import android.os.Build
+import androidx.annotation.RequiresApi
+import org.json.JSONArray
 import org.json.JSONObject
 import org.jsoup.Jsoup
 import java.lang.Double.isNaN
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import kotlin.collections.ArrayList
 import kotlin.math.floor
 
 object Comcigan {
-        fun getTimeTable(schoolId: String, grade: Int, cl: Int): JSONObject {
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun getWeekDate(): String {
+        val currentDate = LocalDate.now()
+        val monday =
+            currentDate.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY))
+        val friday =
+            currentDate.with(java.time.temporal.TemporalAdjusters.nextOrSame(java.time.DayOfWeek.FRIDAY))
+
+        val dateFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
+        val mondayString = monday.format(dateFormatter)
+        val fridayString = friday.format(dateFormatter)
+
+        return "TI_FROM_YMD=$mondayString&TI_TO_YMD=$fridayString"
+    }
+
+    fun getTimeTable(grade: Int, cl: Int): JSONArray {
+        //val key = "89ca5519388e496abcb5adc26573b20f"
+        //val url = "https://open.neis.go.kr/hub/hisTimetable?KEY=$key&Type=json&pIndex=1&pSize=100&ATPT_OFCDC_SC_CODE=K10&SD_SCHUL_CODE=7800076&GRADE=$grade&CLASS_NM=$cl"
+        val p = Jsoup.connect("http://vz.kro.kr/comci/$grade/$cl").ignoreContentType(true).get().text()
+        //val o = Jsoup.connect(url).get().html()
+        //val originJson = JSONObject(o).getJSONArray("hisTimeTable").getJSONObject(1).getJSONArray("row")
+        val comciJson = JSONArray(p)
+        println(comciJson)
+        return comciJson
+    }
+        fun _getTimeTable(schoolId: String, grade: Int, cl: Int): JSONObject {
             val result = JSONObject()
             try {
                 if (!isNaN(schoolId.toDouble())) {
                     val i: String = Jsoup
-                        .connect("http://comci.kr:4082/st")
+                        .connect("http://comci.kr:4082/st") //이제 안됨
                         .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 Safari/537.36")
                         .get()
                         .select("script")
@@ -74,9 +105,9 @@ object Comcigan {
             }
             return result
         }
-        fun searchSchool(schoolName: String): Array<Pair<String, String>?> {
+        fun _searchSchool(schoolName: String): Array<Pair<String, String>?> {
             var result: Any = Jsoup
-                .connect(("http://comci.kr:4082" + getUrl(Jsoup.connect("http://comci.kr:4082/st").header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 Safari/537.36").get().select("script").get(1).html()) + java.net.URLEncoder.encode(schoolName, "EUC-KR")))
+                .connect(("http://comci.kr:4082/st"))
                 .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 Safari/537.36")
                 .header("Referer", "http://comci.kr:4082/st")
                 .get()
@@ -109,4 +140,21 @@ object Comcigan {
             searchSchool: searchSchool.bind(),
             getTimeTable: getTimeTable.bind()
         }*/
+
+    fun getClassNumb(): Array<Int> {
+        val p = Jsoup.connect("http://vz.kro.kr/comci/0/4").ignoreContentType(true).get().text()
+        val result = arrayOf(1,2,3)
+        val l = JSONObject(p)
+        for (i in 1..3) {
+            for(j in 1..l.getJSONObject("$i").length()){
+                if(l.getJSONObject("$i").getJSONArray("$j").getJSONArray(0).getJSONObject(0).getString("teacher") == "") {
+                    break
+                }
+                else {
+                    result[i-1] = j
+                }
+            }
+        }
+        return result
+    }
 }

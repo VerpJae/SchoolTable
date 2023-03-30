@@ -49,7 +49,7 @@ class BFragment : Fragment()
             }
             val today =
                 "$api?KEY=$KEY&Type=$Type&pIndex=1&pSize=100&ATPT_OFCDC_SC_CODE=K10&SD_SCHUL_CODE=$SD_CODE&MMEAL_SC_CODE=2&MLSV_FROM_YMD=${yyyy+MM+dd}&MLSV_TO_YMD=${yyyy+MM+month[MM.toInt()]}"
-
+            println(today)
             val parse =
                 Jsoup.connect(today)
                     .ignoreContentType(true).get().text()
@@ -67,7 +67,7 @@ class BFragment : Fragment()
                 val preDate = basicDate.substring(4,8)
                 val day = SimpleDateFormat("(E)", Locale.KOREA).format(SimpleDateFormat("yyyyMMdd", Locale.KOREA).parse(basicDate)!!)
                 val date = preDate + day
-                val dish = jsonArr.getJSONObject(i).getString("DDISH_NM").replace(Regex("\\d+\\."), "").replace(" ", "\n")
+                val dish = jsonArr.getJSONObject(i).getString("DDISH_NM").replace(Regex("\\((\\d+\\.)+\\)"), "").replace(Regex("( )+"), "\n")
                 list.add(Meal(date, dish))
             }
 
@@ -80,8 +80,7 @@ class BFragment : Fragment()
                         false
                     )
                 xml_main_rv_students.adapter = adapter
-                xml_main_rv_students.layoutManager =
-                    GridLayoutManager(MainActivity.ApplicationContext(), 1)
+                xml_main_rv_students.layoutManager = GridLayoutManager(MainActivity.ApplicationContext(), 1)
 
                 adapter.notifyDataSetChanged()
             }
