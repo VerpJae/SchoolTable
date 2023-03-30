@@ -42,14 +42,18 @@ class BFragment : Fragment()
         val yyyy = SimpleDateFormat("yyyy", Locale.KOREA).format(currentTime)
         val MM = SimpleDateFormat("MM", Locale.KOREA).format(currentTime)
         val dd = SimpleDateFormat("dd", Locale.KOREA).format(currentTime)
-        val tmr = SimpleDateFormat("yyyyMMdd", Locale.KOREA).format(currentTime + 24*60*60*1000)
+        var tmr = SimpleDateFormat("yyyyMMdd", Locale.KOREA).format(currentTime + 24*60*60*1000)
         override fun run() {
+            var lastday = yyyy+MM+month[MM.toInt() - 1]
+            if(dd.toInt() > 28 || (yyyy+MM+dd).toInt() > tmr.toInt()){
+                lastday = SimpleDateFormat("yyyyMMdd", Locale.KOREA).format(currentTime + 24*60*60*1000*10)
+            }
             if(yyyy.toInt()%4 == 0){
-                month.set(1, "29")
+                month[1] = "29"
             }
             val today =
-                "$api?KEY=$KEY&Type=$Type&pIndex=1&pSize=100&ATPT_OFCDC_SC_CODE=K10&SD_SCHUL_CODE=$SD_CODE&MMEAL_SC_CODE=2&MLSV_FROM_YMD=${yyyy+MM+dd}&MLSV_TO_YMD=${yyyy+MM+month[MM.toInt()]}"
-            println(today)
+                "$api?KEY=$KEY&Type=$Type&pIndex=1&pSize=100&ATPT_OFCDC_SC_CODE=K10&SD_SCHUL_CODE=$SD_CODE&MMEAL_SC_CODE=2&MLSV_FROM_YMD=${yyyy+MM+dd}&MLSV_TO_YMD=$lastday"
+            println("today $today")
             val parse =
                 Jsoup.connect(today)
                     .ignoreContentType(true).get().text()
